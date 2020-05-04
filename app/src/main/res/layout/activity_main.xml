@@ -18,7 +18,7 @@
     <TextView
         android:id="@+id/textRSSI"
         android:layout_width="300dp"
-        android:layout_height="150dp"
+        android:layout_height="482dp"
         android:layout_weight="0.48"
         android:text="" />
 
@@ -45,6 +45,13 @@
             android:layout_weight="0.33"
             android:text="Scan Wifi" />
 
+        <Button
+            android:id="@+id/buttonLoad"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="0.33"
+            android:text="LOAD" />
+
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -53,5 +60,6 @@
             android:gravity="center"
             android:orientation="vertical" >
         </LinearLayout>
+
     </LinearLayout>
 </LinearLayout>
