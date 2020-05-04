@@ -44,6 +44,38 @@ class TrainingPoint implements Serializable {
         }
         return ret;
     }
+
+    public double signalStrength(String BSSID) {
+        double sigStr;
+        if (this.accessPoints.containsKey(BSSID)) {
+            int level = this.accessPoints.get(BSSID);
+            if (level > -50) {
+                sigStr = 4;
+            } else if (level > -60) {
+                sigStr = 3;
+            } else if (level > -70) {
+                sigStr = 2;
+            } else {
+                sigStr = 1;
+            }
+        } else {
+            sigStr = 0;
+        }
+        return sigStr;
+    }
+
+    public static double distance(TrainingPoint inPointA, TrainingPoint inPointB) {
+        double dist = 0;
+        HashSet<String> unionBSSID = new HashSet<String>();
+        unionBSSID.addAll(inPointA.getAccessPoints().keySet());
+        unionBSSID.addAll(inPointB.getAccessPoints().keySet());
+        for (String s : unionBSSID) {
+            double cur_dist = inPointA.signalStrength(s) - inPointB.signalStrength(s);
+            cur_dist *= cur_dist;  // square
+            dist += cur_dist;  // sum of square
+        }
+        return Math.sqrt(dist);
+    }
 }
 
 /**
@@ -65,12 +97,17 @@ public class MainActivity extends Activity {
     private Button buttonRssi;
     private Button buttonLoad;
 
-    private String filename = "trainingData.bin";
+    private String filename;
+
+    private TrainingPoint pointInMem;
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        filename = "trainingData.bin";
+        pointInMem = null;
 
         // Create items.
         textRssi = (TextView) findViewById(R.id.textRSSI);
@@ -96,10 +133,15 @@ public class MainActivity extends Activity {
                     accessPoints.putIfAbsent(scanResult.BSSID, scanResult.level);
                 }
                 TrainingPoint scanned = new TrainingPoint(accessPoints, 0);
+                if (pointInMem != null) {
+                    textRssi.setText(textRssi.getText() + "\n\tdistance = "
+                            + TrainingPoint.distance(pointInMem, scanned));
+                }
+                pointInMem = scanned;
                 try {
                     FileOutputStream fos = getApplicationContext().openFileOutput(filename, Context.MODE_PRIVATE);
                     ObjectOutputStream oos = new ObjectOutputStream(fos);
-                    scanned.save(oos);
+                    pointInMem.save(oos);
                     oos.close();
                     fos.close();
                 } catch (IOException e) {
@@ -122,7 +164,7 @@ public class MainActivity extends Activity {
                 } catch (IOException | ClassNotFoundException e) {
                     e.printStackTrace();
                 }
-
+                pointInMem = readPoint;
                 textRssi.setText("\n\tScan all access points:");
                 for (Map.Entry<String, Integer> m : readPoint.getAccessPoints().entrySet()) {
                     textRssi.setText(textRssi.getText() + "\n\tBSSID = "
