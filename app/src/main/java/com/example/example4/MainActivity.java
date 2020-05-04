@@ -14,41 +14,16 @@ import android.view.View.OnClickListener;
 import android.widget.Button;
 import android.widget.TextView;
 
-class AccessPoint implements Serializable{
-    private String BSSID;
-    private int level;
-
-    public AccessPoint(String BSSID, int level) {
-        this.BSSID = BSSID;
-        this.level = level;
-    }
-
-    public String getBSSID() {
-        return BSSID;
-    }
-
-    public int getLevel() {
-        return level;
-    }
-}
-
-class compareByLevel implements Serializable, Comparator<AccessPoint> {
-    @Override
-    public int compare(AccessPoint x, AccessPoint y) {
-        return Integer.compare(x.getLevel(), y.getLevel());
-    }
-}
-
-class TrainingPoint implements Serializable{
-    private TreeSet<AccessPoint> accessPoints;
+class TrainingPoint implements Serializable {
+    private HashMap<String, Integer> accessPoints;
     private int position;
 
-    public TrainingPoint(TreeSet<AccessPoint> accessPoints, int position) {
+    public TrainingPoint(HashMap<String, Integer> accessPoints, int position) {
         this.accessPoints = accessPoints;
         this.position = position;
     }
 
-    public TreeSet<AccessPoint> getAccessPoints() {
+    public HashMap<String, Integer> getAccessPoints() {
         return accessPoints;
     }
 
@@ -62,10 +37,9 @@ class TrainingPoint implements Serializable{
 
     public static TrainingPoint load(ObjectInputStream ois) throws IOException, ClassNotFoundException {
         TrainingPoint ret;
-        try{
+        try {
             ret = (TrainingPoint) ois.readObject();
-        }
-        catch (EOFException e){
+        } catch (EOFException e) {
             ret = null;
         }
         return ret;
@@ -114,12 +88,12 @@ public class MainActivity extends Activity {
                 // Store results in a list.
                 List<ScanResult> scanResults = wifiManager.getScanResults();
 
-                TreeSet<AccessPoint> accessPoints = new TreeSet<AccessPoint>(new compareByLevel());
+                HashMap<String, Integer> accessPoints = new HashMap<String, Integer>();
                 for (ScanResult scanResult : scanResults) {
                     textRssi.setText(textRssi.getText() + "\n\tBSSID = "
                             + scanResult.BSSID + "    RSSI = "
                             + scanResult.level + "dBm");
-                    accessPoints.add(new AccessPoint(scanResult.BSSID, scanResult.level));
+                    accessPoints.putIfAbsent(scanResult.BSSID, scanResult.level);
                 }
                 TrainingPoint scanned = new TrainingPoint(accessPoints, 0);
                 try {
@@ -150,10 +124,10 @@ public class MainActivity extends Activity {
                 }
 
                 textRssi.setText("\n\tScan all access points:");
-                for (AccessPoint accessPoint : readPoint.getAccessPoints().descendingSet()) {
+                for (Map.Entry<String, Integer> m : readPoint.getAccessPoints().entrySet()) {
                     textRssi.setText(textRssi.getText() + "\n\tBSSID = "
-                            + accessPoint.getBSSID() + "    RSSI = "
-                            + accessPoint.getLevel() + "dBm");
+                            + m.getKey() + "    RSSI = "
+                            + m.getValue() + "dBm");
                 }
             }
         });
