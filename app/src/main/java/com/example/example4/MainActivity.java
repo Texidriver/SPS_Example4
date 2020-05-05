@@ -94,12 +94,51 @@ public class MainActivity extends Activity {
     /**
      * The button.
      */
+    private Button buttonUL;
+    private Button buttonUR;
+    private Button buttonLL;
+    private Button buttonLR;
     private Button buttonRssi;
     private Button buttonLoad;
 
     private String filename;
 
-    private TrainingPoint pointInMem;
+    private HashSet<TrainingPoint> trainingPoints;
+
+    protected void saveTrainingPoints (HashSet<TrainingPoint> trainingPoints) {
+        try {
+            FileOutputStream fos = getApplicationContext().openFileOutput(filename, Context.MODE_PRIVATE);
+            ObjectOutputStream oos = new ObjectOutputStream(fos);
+            oos.writeObject(trainingPoints);
+            oos.close();
+            fos.close();
+        } catch (IOException e) {
+            e.printStackTrace();
+        }
+    }
+
+    protected HashMap<String, Integer> wifiScan () {
+        // Start a wifi scan.
+        wifiManager.startScan();
+        // Store results in a list.
+        List<ScanResult> scanResults = wifiManager.getScanResults();
+        // Set text.
+        // textRssi.setText("\n\tScan all access points:");
+        HashMap<String, Integer> accessPoints = new HashMap<String, Integer>();
+        for (ScanResult scanResult : scanResults) {
+            // textRssi.setText(textRssi.getText() + "\n\tBSSID = "
+            //         + scanResult.BSSID + "    RSSI = "
+            //         + scanResult.level + "dBm");
+            accessPoints.putIfAbsent(scanResult.BSSID, scanResult.level);
+        }
+        return accessPoints;
+    }
+
+    protected void wifiTrain(int position) {
+        trainingPoints.add(new TrainingPoint(wifiScan(), position));
+        saveTrainingPoints(trainingPoints);
+        textRssi.setText("Total number of training points is " + trainingPoints.size());
+    }
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -107,45 +146,63 @@ public class MainActivity extends Activity {
         setContentView(R.layout.activity_main);
 
         filename = "trainingData.bin";
-        pointInMem = null;
+        trainingPoints = new HashSet<TrainingPoint>();
+
+        // Set wifi manager.
+        wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
 
         // Create items.
         textRssi = (TextView) findViewById(R.id.textRSSI);
+
+        buttonUL = (Button) findViewById(R.id.buttonTrainUL);
+        buttonUL.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                wifiTrain(0);
+            }
+        });
+
+        buttonUR = (Button) findViewById(R.id.buttonTrainUR);
+        buttonUR.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                wifiTrain(1);
+            }
+        });
+
+        buttonLL = (Button) findViewById(R.id.buttonTrainLL);
+        buttonLL.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                wifiTrain(2);
+            }
+        });
+
+        buttonLR = (Button) findViewById(R.id.buttonTrainLR);
+        buttonLR.setOnClickListener(new OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                wifiTrain(3);
+            }
+        });
+
         buttonRssi = (Button) findViewById(R.id.buttonRSSI);
         // Set listener for the button.
         buttonRssi.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                // Set text.
-                textRssi.setText("\n\tScan all access points:");
-                // Set wifi manager.
-                wifiManager = (WifiManager) getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-                // Start a wifi scan.
-                wifiManager.startScan();
-                // Store results in a list.
-                List<ScanResult> scanResults = wifiManager.getScanResults();
-
-                HashMap<String, Integer> accessPoints = new HashMap<String, Integer>();
-                for (ScanResult scanResult : scanResults) {
-                    textRssi.setText(textRssi.getText() + "\n\tBSSID = "
-                            + scanResult.BSSID + "    RSSI = "
-                            + scanResult.level + "dBm");
-                    accessPoints.putIfAbsent(scanResult.BSSID, scanResult.level);
-                }
-                TrainingPoint scanned = new TrainingPoint(accessPoints, 0);
-                if (pointInMem != null) {
-                    textRssi.setText(textRssi.getText() + "\n\tdistance = "
-                            + TrainingPoint.distance(pointInMem, scanned));
-                }
-                pointInMem = scanned;
-                try {
-                    FileOutputStream fos = getApplicationContext().openFileOutput(filename, Context.MODE_PRIVATE);
-                    ObjectOutputStream oos = new ObjectOutputStream(fos);
-                    pointInMem.save(oos);
-                    oos.close();
-                    fos.close();
-                } catch (IOException e) {
-                    e.printStackTrace();
+                TrainingPoint scanned = new TrainingPoint(wifiScan(), -1);
+//                if (pointInMem != null) {
+//                    textRssi.setText(textRssi.getText() + "\n\tdistance = "
+//                            + TrainingPoint.distance(pointInMem, scanned));
+//                }
+//                pointInMem = scanned;
+                textRssi.setText("");
+                for (TrainingPoint trainingPoint : trainingPoints) {
+                    textRssi.setText(textRssi.getText()
+                            + "Distance = "
+                            + TrainingPoint.distance(trainingPoint, scanned)
+                            + "\n\r");
                 }
             }
         });
@@ -154,23 +211,22 @@ public class MainActivity extends Activity {
         buttonLoad.setOnClickListener(new OnClickListener() {
             @Override
             public void onClick(View v) {
-                TrainingPoint readPoint = null;
                 try {
                     FileInputStream fis = getApplicationContext().openFileInput(filename);
                     ObjectInputStream ois = new ObjectInputStream(fis);
-                    readPoint = TrainingPoint.load(ois);
+                    trainingPoints = (HashSet<TrainingPoint>) ois.readObject();
                     ois.close();
                     fis.close();
                 } catch (IOException | ClassNotFoundException e) {
                     e.printStackTrace();
                 }
-                pointInMem = readPoint;
-                textRssi.setText("\n\tScan all access points:");
-                for (Map.Entry<String, Integer> m : readPoint.getAccessPoints().entrySet()) {
-                    textRssi.setText(textRssi.getText() + "\n\tBSSID = "
-                            + m.getKey() + "    RSSI = "
-                            + m.getValue() + "dBm");
-                }
+                // textRssi.setText("\n\tScan all access points:");
+                // for (Map.Entry<String, Integer> m : readPoint.getAccessPoints().entrySet()) {
+                //     textRssi.setText(textRssi.getText() + "\n\tBSSID = "
+                //             + m.getKey() + "    RSSI = "
+                //             + m.getValue() + "dBm");
+                // }
+                textRssi.setText("Total number of training points is " + trainingPoints.size());
             }
         });
     }
