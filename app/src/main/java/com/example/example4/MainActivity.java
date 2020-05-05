@@ -5,6 +5,10 @@ import java.util.*;
 import java.io.*;
 
 import android.app.Activity;
+import android.hardware.Sensor;
+import android.hardware.SensorEvent;
+import android.hardware.SensorEventListener;
+import android.hardware.SensorManager;
 import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.os.Bundle;
@@ -81,7 +85,7 @@ class TrainingPoint implements Serializable {
 /**
  * Smart Phone Sensing Example 4. Wifi received signal strength.
  */
-public class MainActivity extends Activity {
+public class MainActivity extends Activity implements SensorEventListener {
 
     /**
      * The wifi manager.
@@ -91,6 +95,29 @@ public class MainActivity extends Activity {
      * The text view.
      */
     private TextView textRssi;
+    private TextView action_info;
+    private SensorManager sensorManager;
+    /**
+     * The accelerometer.
+     */
+    private Sensor accelerometer;
+
+    private double aX = 0;
+    private double aY = 0;
+    private double aZ = 0;
+
+    private double data_action[][] = {
+            {3.761,1.539,1}, {2.229,1.108,1}, {2.980,1.324,1}, {2.687,1.770,1}, {1.207,0.826,1}, {1.900,0.308,1},
+            {2.506,0.813,1}, {0.879,0.053,1}, {2.274,0.662,1}, {2.342,0.652,1}, {3.544,2.388,1}, {1.971,1.442,1},
+            {3.423,1.667,1}, {2.591,1.592,1}, {2.336,1.153,1}, {1.336,1.357,1}, {2.023,1.254,1}, {1.213,0.882,1},
+            {3.210,1.245,1}, {3.795,2.202,1},{19.170,37.432,2},{14.690,20.494,2}, {13.433,13.879,2}, {12.5340,19.640,2},
+            {10.660,15.232,2}, {13.480,20.556,2}, {13.220,23.621,2}, {8.760,10.417,2}, {13.420, 25.415,2},
+            {10.520,13.695,2}, {9.210,9.210,2}, {9.570,15.103,2}, {8.365,11.23,2}, {12.10,20.045,2}, {7.583,10.021,2},
+            {11.280,19.832,2}, {14.520,13.691,2}, {12.560,24.621,2}, {9.670,13.425,2},{7.210,10.294,2},
+            {0.521,0.002,3}, {0.627,0.077,3}, {0.757,0.042,3}, {1.001,0.093,3}, {0.210,0.033,3}, {0.073,0.010,3},
+            {0.080,0.000,3}, {0.088,0.022,3}, {0.218,0.021,3}, {0.444,0.003,3}, {0.310,0.002,3}, {0.673,0.098,3},
+            {0.780,0.527,3}, {0.030,0.000,3}, {0.223,0.001,3}, {0.143,0.002,3}, {0.713,0.070,3}, {0.057,0.001,3},
+            {0.893,0.681,3}, {0.193,0.013,3}};
     /**
      * The button.
      */
@@ -144,6 +171,98 @@ public class MainActivity extends Activity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        action_info = (TextView) findViewById(R.id.actionbox);
+
+        sensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
+
+        if (sensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER) != null) {
+            // set accelerometer
+            accelerometer = sensorManager
+                    .getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
+            // register 'this' as a listener that updates values. Each time a sensor value changes,
+            // the method 'onSensorChanged()' is called.
+            sensorManager.registerListener(this, accelerometer,
+                    SensorManager.SENSOR_DELAY_NORMAL);
+        } else {
+            // No accelerometer!
+        }
+
+        final ArrayList<Double> Testresult = new ArrayList();
+        Timer timer = new Timer();
+        TimerTask t = new TimerTask() {
+            @Override
+            public void run() {
+
+                double total_acc = Math.sqrt((Math.pow(aX, 2) + Math.pow(aY, 2) + Math.pow(aZ, 2)));
+                if (Testresult.size() == 10) {
+                    Testresult.remove(0);
+                    Testresult.add(total_acc);
+                    double avg = 0;
+                    double variance = 0;
+                    double distance_activity[][] = new double[2][60];
+
+                    double diff = Collections.max(Collections.singleton(total_acc)) - Collections.min(Collections.singleton(total_acc));
+                    for (int i = 0; i < 10; i++) {
+                        avg += (0.1 * Testresult.get(i));
+                    }
+
+                    for (int j = 0; j < 10; j++) {
+                        variance += Math.pow((Testresult.get(j) - avg), 2);
+                    }
+                    variance /= 9;
+
+                    for (int i = 0; i < 60; i++) {
+                        distance_activity[0][i] = i;
+                        distance_activity[1][i] = 0;
+                    }
+                    for (int j = 0; j < 60; j++) {
+                        distance_activity[1][j] = Math.pow((diff - data_action[j][0]), 2)
+                                + Math.pow((variance - data_action[j][1]), 2);
+                    }
+
+                    for (int i = 0; i < 60; i++) {
+                        for (int j = 0; j < 59; j++) {
+                            if (distance_activity[1][j + 1] < distance_activity[1][j]) {
+                                double temp = distance_activity[1][j + 1];
+                                distance_activity[1][j + 1] = distance_activity[1][j];
+                                distance_activity[1][j] = temp;
+
+                                double temp_index = distance_activity[0][j + 1];
+                                distance_activity[0][j + 1] = distance_activity[0][j];
+                                distance_activity[0][j] = temp_index;
+                            }
+                        }
+                    }
+
+                    int counter_act = 0;
+                    int num_mov = 0;
+                    int num_squ = 0;
+                    int num_sta = 0;
+                    int index2;
+                    while (counter_act < 9) {
+                        index2 = (int) distance_activity[0][counter_act];
+                        if (data_action[index2][2] == 1) num_mov++;
+                        else if (data_action[index2][2] == 2) num_squ++;
+                        else if (data_action[index2][2] == 3) num_sta++;
+                        counter_act++;
+                    }
+                    action_info.setText("");
+                    if(num_mov >= num_squ && num_mov >= num_sta){
+                        action_info.setText("Moving");
+                    }else if(num_squ >= num_mov && num_squ >= num_sta){
+                        action_info.setText("Squat");
+                    }else{
+                        action_info.setText("Standing");
+                    }
+                }else{
+                    System.out.println("Notstarted");
+                    action_info.setText("Wait");
+                    Testresult.add(total_acc);}
+
+            }
+        };
+        timer.scheduleAtFixedRate(t,100,100);
 
         filename = "trainingData.bin";
         trainingPoints = new HashSet<TrainingPoint>();
@@ -266,10 +385,25 @@ public class MainActivity extends Activity {
     // onResume() registers the accelerometer for listening the events
     protected void onResume() {
         super.onResume();
+        sensorManager.registerListener(this, accelerometer,
+                SensorManager.SENSOR_DELAY_NORMAL);
     }
 
     // onPause() unregisters the accelerometer for stop listening the events
     protected void onPause() {
         super.onPause();
+        sensorManager.unregisterListener(this);
+    }
+
+    @Override
+    public void onAccuracyChanged(Sensor sensor, int accuracy) {
+        // Do nothing.
+    }
+
+    @Override
+    public void onSensorChanged(SensorEvent event) {
+        aX = event.values[0];
+        aY = event.values[1];
+        aZ = event.values[2];
     }
 }
