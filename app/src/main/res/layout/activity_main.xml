@@ -125,7 +125,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_weight="0.33"
-            android:text="Scan Wifi" />
+            android:text="Localize" />
 
         <Button
             android:id="@+id/buttonLoad"

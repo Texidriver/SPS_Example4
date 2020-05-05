@@ -192,17 +192,49 @@ public class MainActivity extends Activity {
             @Override
             public void onClick(View v) {
                 TrainingPoint scanned = new TrainingPoint(wifiScan(), -1);
-//                if (pointInMem != null) {
-//                    textRssi.setText(textRssi.getText() + "\n\tdistance = "
-//                            + TrainingPoint.distance(pointInMem, scanned));
-//                }
-//                pointInMem = scanned;
-                textRssi.setText("");
+
+                int k = (int) Math.ceil(Math.sqrt(trainingPoints.size()));
+                if (k % 2 == 0){
+                    k++;
+                }
+                k = Math.min(k, trainingPoints.size());
+
+                TreeMap<Double, TrainingPoint> kNN = new TreeMap<Double, TrainingPoint>();
                 for (TrainingPoint trainingPoint : trainingPoints) {
-                    textRssi.setText(textRssi.getText()
-                            + "Distance = "
-                            + TrainingPoint.distance(trainingPoint, scanned)
-                            + "\n\r");
+                    double distance = TrainingPoint.distance(trainingPoint, scanned);
+                    if (kNN.size() < k) {
+                        kNN.put(distance, trainingPoint);
+                    } else if (distance < kNN.lastKey()) {
+                        kNN.pollLastEntry();
+                        kNN.put(distance, trainingPoint);
+                    }
+                }
+
+                int[] freq = new int[4];
+                for (Map.Entry<Double, TrainingPoint> m : kNN.entrySet()) {
+                    freq[m.getValue().getPosition()]++;
+                }
+                int maxAt = 0;
+                for (int i = 0; i < 4; i++) {
+                    maxAt = freq[i] > freq[maxAt] ? i : maxAt;
+                }
+
+                switch (maxAt) {
+                    case 0:
+                        textRssi.setText("\tYou are at ↖️");
+                        break;
+                    case 1:
+                        textRssi.setText("\tYou are at ↗️");
+                        break;
+                    case 2:
+                        textRssi.setText("\tYou are at ↙️️");
+                        break;
+                    case 3:
+                        textRssi.setText("\tYou are at ↘️");
+                        break;
+                    default:
+                        textRssi.setText("");
+                        break;
                 }
             }
         });
