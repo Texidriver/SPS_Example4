@@ -9,16 +9,15 @@
     android:paddingTop="20dp" >
 
     <TextView
-        android:id="@+id/titleRSSI"
-        android:layout_width="wrap_content"
-        android:layout_height="30dp"
-        android:text="WIFI RSSI"
+        android:id="@+id/actionbox"
+        android:layout_width="306dp"
+        android:layout_height="105dp"
         android:textSize="20dp" />
 
     <TextView
         android:id="@+id/textRSSI"
         android:layout_width="300dp"
-        android:layout_height="482dp"
+        android:layout_height="364dp"
         android:layout_weight="0.48"
         android:text="" />
 
